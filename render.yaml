@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: freshco-proxy
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    plan: free
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false   # lo pegas manualmente en el dashboard de Render
+      - key: NODE_ENV
+        value: production

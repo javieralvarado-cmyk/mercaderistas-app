@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+.env.local
+server/.env
+scripts/serviceAccount.json
+# .env.production NO se ignora — contiene la URL pública de Render (no es un secreto)

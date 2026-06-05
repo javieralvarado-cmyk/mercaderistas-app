@@ -1,0 +1,36 @@
+{
+  "name": "mercaderistas-app",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "proxy": "node server/proxy.mjs",
+    "crear-usuarios": "node scripts/createUsers.mjs",
+    "borrar-datos": "node scripts/clearTestData.mjs",
+    "deploy": "npm run build && firebase deploy --only hosting"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "date-fns": "^3.6.0",
+    "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
+    "express": "^5.2.1",
+    "file-saver": "^2.0.5",
+    "firebase": "^10.12.0",
+    "leaflet": "^1.9.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-leaflet": "^4.2.1",
+    "react-router-dom": "^6.24.0",
+    "react-signature-canvas": "^1.0.6"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "firebase-admin": "^13.10.0",
+    "vite": "^5.3.1",
+    "vite-plugin-pwa": "^0.20.0"
+  }
+}
