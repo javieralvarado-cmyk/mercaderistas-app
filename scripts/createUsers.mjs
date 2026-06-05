@@ -9,46 +9,29 @@
  *      Project Settings → Service Accounts → "Generate new private key"
  *      Guárdala como: scripts/serviceAccount.json
  *   2. npm install firebase-admin (ya hecho)
+ *
+ * Resultado: genera un link por persona para que cada una cree su propia contraseña.
+ *            Mándalos por WhatsApp — el link expira en 1 hora.
  */
 
 import { readFileSync } from 'fs'
 import { cert, initializeApp } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
 import { getFirestore } from 'firebase-admin/firestore'
+import crypto from 'crypto'
 
-// ─── Configuración ─────────────────────────────────────────────────────────
-const SERVICE_ACCOUNT_PATH = new URL('./serviceAccount.json', import.meta.url).pathname
-
-// Contraseña inicial para todos los usuarios (se puede cambiar desde la app o la consola Firebase)
-const CLAVE_INICIAL = 'FreshCo2025!'
-
-// Lista de usuarios a crear
-// Agrega transportistas aquí cuando tengas sus datos
+// ─── Usuarios a crear ───────────────────────────────────────────────────────
+// Agrega transportistas descomentando las líneas de abajo
 const USUARIOS = [
-  {
-    name:  'Darkiris',
-    email: 'darkiris@freshcopty.com',
-    role:  'mercaderista',
-  },
-  {
-    name:  'Digna',
-    email: 'digna@freshcopty.com',
-    role:  'mercaderista',
-  },
-  // Descomenta y edita cuando tengas los datos reales:
-  // {
-  //   name:  'Nombre Transportista 1',
-  //   email: 'transportista1@freshcopty.com',
-  //   role:  'transportista',
-  // },
-  // {
-  //   name:  'Nombre Transportista 2',
-  //   email: 'transportista2@freshcopty.com',
-  //   role:  'transportista',
-  // },
+  { name: 'darkiris', email: 'darkiris@freshcopty.com', role: 'mercaderista' },
+  { name: 'digna',    email: 'digna@freshcopty.com',    role: 'mercaderista' },
+  // { name: 'transportista1', email: 'transportista1@freshcopty.com', role: 'transportista' },
+  // { name: 'transportista2', email: 'transportista2@freshcopty.com', role: 'transportista' },
 ]
 
 // ─── Inicializar Firebase Admin ─────────────────────────────────────────────
+const SERVICE_ACCOUNT_PATH = new URL('./serviceAccount.json', import.meta.url).pathname
+
 let serviceAccount
 try {
   serviceAccount = JSON.parse(readFileSync(SERVICE_ACCOUNT_PATH, 'utf8'))
@@ -62,48 +45,60 @@ initializeApp({ credential: cert(serviceAccount) })
 const auth = getAuth()
 const db   = getFirestore()
 
-// ─── Crear usuarios ─────────────────────────────────────────────────────────
+// ─── Crear usuarios y generar links ─────────────────────────────────────────
 console.log('\n🚀  Creando cuentas de FreshCo...\n')
+
+const links = []
 
 for (const u of USUARIOS) {
   try {
-    // 1. Crear (o reutilizar) el usuario en Firebase Auth
     let uid
+
     try {
       const existing = await auth.getUserByEmail(u.email)
       uid = existing.uid
-      console.log(`⚠️   ${u.name} (${u.email}) ya existe → uid: ${uid}`)
+      console.log(`⚠️   ${u.name} ya existe → uid: ${uid}`)
     } catch {
       const created = await auth.createUser({
         email:         u.email,
-        password:      CLAVE_INICIAL,
+        password:      crypto.randomBytes(16).toString('hex'), // temporal, se reemplaza al usar el link
         displayName:   u.name,
         emailVerified: true,
       })
       uid = created.uid
-      console.log(`✅  Creado en Auth: ${u.name} (${u.email}) → uid: ${uid}`)
+      console.log(`✅  Cuenta creada: ${u.name} (${u.email})`)
     }
 
-    // 2. Crear / actualizar el documento en Firestore /users/{uid}
-    await db.collection('users').doc(uid).set({
-      name:  u.name,
-      email: u.email,
-      role:  u.role,
-    }, { merge: true })
+    await db.collection('users').doc(uid).set(
+      { name: u.name, email: u.email, role: u.role },
+      { merge: true }
+    )
 
-    console.log(`    📄  /users/${uid} guardado en Firestore`)
+    const link = await auth.generatePasswordResetLink(u.email)
+    links.push({ name: u.name, email: u.email, link })
+    console.log(`    🔗  Link de contraseña generado para ${u.name}`)
+
   } catch (err) {
     console.error(`❌  Error con ${u.name}: ${err.message}`)
   }
 }
 
+// ─── Imprimir links para copiar/pegar en WhatsApp ────────────────────────────
 console.log(`
-─────────────────────────────────────────────
-✅  Proceso terminado.
+══════════════════════════════════════════════
+  LINKS PARA ENVIAR POR WHATSAPP (expiran en 1h)
+══════════════════════════════════════════════
+`)
 
-Contraseña inicial de todos: ${CLAVE_INICIAL}
+for (const { name, email, link } of links) {
+  console.log(`👤  ${name.toUpperCase()} (${email})`)
+  console.log(`    Hola ${name}, aquí está tu link para crear tu contraseña de FreshCo:`)
+  console.log(`    ${link}`)
+  console.log()
+}
 
-👉  Recuerda pedirle a cada persona que cambie
-    su contraseña la primera vez que entren.
-─────────────────────────────────────────────
+console.log(`══════════════════════════════════════════════
+Una vez que entren, el usuario es su email
+y la contraseña la crean ellas mismas.
+══════════════════════════════════════════════
 `)
