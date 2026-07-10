@@ -2,11 +2,13 @@ import ExcelJS from 'exceljs'
 import { saveAs } from 'file-saver'
 
 // FreshCo brand colors (ARGB)
-const AZUL_FC   = 'FF0096DB'   // azul principal
-const MARINO_FC = 'FF0A3D7A'   // azul marino
-const AZUL_CLR  = 'FFE0F4FF'   // azul muy claro (cabeceras)
-const AMRLL_CLR = 'FFFFF3CC'   // amarillo claro (fila con promo)
+const AZUL_FC   = 'FF0096DB'
+const MARINO_FC = 'FF0A3D7A'
+const AZUL_CLR  = 'FFE0F4FF'
+const AMRLL_CLR = 'FFFFF3CC'
 const GRIS      = 'FFF5F5F5'
+const ROJO_CLR  = 'FFFFE0E0'
+const VERDE_CLR = 'FFE6F9EE'
 
 const BORDE = {
   top:    { style: 'thin' },
@@ -226,4 +228,164 @@ export async function exportarVisitaExcel(visita) {
   )
   const nombre = `visita_${visita.mercaderistaName}_${visita.fecha}_${visita.supermercadoName}.xlsx`
   saveAs(blob, nombre)
+}
+
+// ─── REPORTE DIARIO ─────────────────────────────────────────────────────────
+export async function exportarReporteDiarioExcel({ visitas, cumplimiento, fecha, totalesDeg, degustaciones }) {
+  const wb = new ExcelJS.Workbook()
+
+  function sheetHeader(ws, titulo) {
+    ws.addRow([titulo])
+    ws.mergeCells(`A1:H1`)
+    const c = ws.getCell('A1')
+    c.font      = { bold: true, size: 13, color: { argb: 'FFFFFFFF' } }
+    c.fill      = fill(MARINO_FC)
+    c.alignment = { horizontal: 'center', vertical: 'middle' }
+    ws.getRow(1).height = 28
+  }
+
+  function headRow(ws, cols) {
+    const r = ws.addRow(cols)
+    r.eachCell(c => {
+      c.font      = F_HEAD
+      c.fill      = fill(AZUL_CLR)
+      c.border    = BORDE
+      c.alignment = { horizontal: 'center', wrapText: true }
+    })
+    return r
+  }
+
+  function dataRow(ws, values, bgArgb) {
+    const r = ws.addRow(values)
+    r.eachCell(c => {
+      c.border    = BORDE
+      c.font      = { size: 10 }
+      c.alignment = { horizontal: 'center' }
+      if (bgArgb) c.fill = fill(bgArgb)
+    })
+    return r
+  }
+
+  // ── Hoja 1: Resumen ────────────────────────────────────────────────────────
+  const ws1 = wb.addWorksheet('Resumen')
+  ws1.columns = [
+    { width: 22 }, { width: 14 }, { width: 14 }, { width: 14 },
+    { width: 14 }, { width: 14 }, { width: 16 }, { width: 20 },
+  ]
+  sheetHeader(ws1, `REPORTE DIARIO · FRESHCO · ${fecha}`)
+
+  const completadas   = visitas.filter(v => v.estado === 'completada').length
+  const enCurso       = visitas.filter(v => v.estado === 'en_curso').length
+  const totalProg     = cumplimiento.reduce((s, c) => s + c.total, 0)
+  const totalVisit    = cumplimiento.reduce((s, c) => s + c.visitadas, 0)
+  const pctGral       = totalProg > 0 ? Math.round(totalVisit / totalProg * 100) : 0
+  const conTiempo     = visitas.filter(v => v.tiempoEnLocal)
+  const tiempoProm    = conTiempo.length > 0
+    ? Math.round(conTiempo.reduce((s, v) => s + v.tiempoEnLocal, 0) / conTiempo.length) : 0
+
+  // Métricas generales
+  ws1.addRow([])
+  ws1.addRow(['MÉTRICAS GENERALES']).eachCell(c => { c.font = { bold: true, size: 11, color: { argb: MARINO_FC } } })
+  headRow(ws1, ['Programadas', 'Completadas', 'En curso', 'Cumplimiento', 'Tiempo prom.', 'Degustaciones', '', ''])
+  dataRow(ws1, [totalProg, completadas, enCurso, `${pctGral}%`, tiempoProm > 0 ? `${tiempoProm} min` : '—', degustaciones.length, '', ''],
+    pctGral === 100 ? VERDE_CLR : pctGral >= 50 ? AMRLL_CLR : ROJO_CLR)
+
+  // Por mercaderista
+  ws1.addRow([])
+  ws1.addRow(['POR MERCADERISTA']).eachCell(c => { c.font = { bold: true, size: 11, color: { argb: MARINO_FC } } })
+  headRow(ws1, ['Mercaderista', 'Programadas', 'Completadas', 'Cumplimiento', 'Tiempo prom.', 'Sin visitar', '', ''])
+  cumplimiento.forEach(c => {
+    const vm      = visitas.filter(v => v.mercaderistaName === c.nombre)
+    const ctm     = vm.filter(v => v.tiempoEnLocal)
+    const promM   = ctm.length > 0 ? Math.round(ctm.reduce((s, v) => s + v.tiempoEnLocal, 0) / ctm.length) : 0
+    const falt    = c.faltantes.map(t => t.name).join(', ')
+    const r       = dataRow(ws1, [c.nombre, c.total, c.visitadas, `${c.pct}%`,
+      promM > 0 ? `${promM} min` : '—', falt || '✅ Ninguna', '', ''],
+      c.pct === 100 ? VERDE_CLR : c.pct >= 50 ? AMRLL_CLR : ROJO_CLR)
+    r.getCell(1).alignment = { horizontal: 'left' }
+    r.getCell(6).alignment = { horizontal: 'left' }
+  })
+
+  // ── Hoja 2: Visitas ────────────────────────────────────────────────────────
+  const ws2 = wb.addWorksheet('Visitas')
+  ws2.columns = [
+    { width: 20 }, { width: 22 }, { width: 10 }, { width: 10 },
+    { width: 12 }, { width: 10 }, { width: 18 }, { width: 16 },
+  ]
+  sheetHeader(ws2, `DETALLE DE VISITAS · ${fecha}`)
+  ws2.addRow([])
+  headRow(ws2, ['Mercaderista', 'Tienda', 'Hora entrada', 'Hora salida', 'Tiempo (min)', 'Estado', 'GPS entrada', 'Notas'])
+  visitas.forEach(v => {
+    const gps = v.gpsEntrada ? `${v.gpsEntrada.lat?.toFixed(4)}, ${v.gpsEntrada.lng?.toFixed(4)}` : '—'
+    const r = dataRow(ws2, [
+      v.mercaderistaName, v.supermercadoName,
+      v.horaEntrada ?? '—', v.horaSalida ?? '—',
+      v.tiempoEnLocal ?? '—',
+      v.estado === 'completada' ? '✅ Completada' : v.estado === 'en_curso' ? '⏳ En curso' : v.estado,
+      gps, v.notasGenerales ?? '',
+    ], v.estado === 'completada' ? VERDE_CLR : v.estado === 'en_curso' ? AMRLL_CLR : null)
+    r.getCell(1).alignment = { horizontal: 'left' }
+    r.getCell(2).alignment = { horizontal: 'left' }
+    r.getCell(8).alignment = { horizontal: 'left', wrapText: true }
+  })
+
+  // ── Hoja 3: Stock Crítico ──────────────────────────────────────────────────
+  const ws3 = wb.addWorksheet('Stock Crítico')
+  ws3.columns = [{ width: 20 }, { width: 22 }, { width: 20 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 }]
+  sheetHeader(ws3, `STOCK CRÍTICO · ${fecha}`)
+  ws3.addRow([])
+  headRow(ws3, ['Tipo de alerta', 'Producto', 'Tienda', 'Mercaderista', 'Estado anaquel', 'Días p/ vencer', '', ''])
+
+  visitas.forEach(v => {
+    v.productos?.forEach(p => {
+      let tipo = null
+      let diasVenc = ''
+      if (p.estadoAnaquel === 'Vacío')      tipo = '🚨 Góndola vacía'
+      else if (p.estadoAnaquel === 'Bajo stock') tipo = '⚠️ Bajo stock'
+      if (p.fechaVencimiento) {
+        const dias = Math.ceil((new Date(p.fechaVencimiento) - new Date()) / 86400000)
+        if (dias <= 0)       { tipo = '❌ Vencido'; diasVenc = `${Math.abs(dias)}d vencido` }
+        else if (dias <= 30) { tipo = tipo || '📅 Por vencer'; diasVenc = `${dias}d` }
+      }
+      if (!tipo) return
+      const r = dataRow(ws3, [tipo, p.nombre, v.supermercadoName, v.mercaderistaName, p.estadoAnaquel ?? '', diasVenc, '', ''],
+        tipo.startsWith('🚨') || tipo.startsWith('❌') ? ROJO_CLR : AMRLL_CLR)
+      r.getCell(1).alignment = { horizontal: 'left' }
+      r.getCell(2).alignment = { horizontal: 'left' }
+      r.getCell(3).alignment = { horizontal: 'left' }
+    })
+  })
+  if (ws3.rowCount <= 3) {
+    ws3.addRow(['✅ Sin alertas de stock para este día.'])
+      .getCell(1).font = { italic: true, color: { argb: 'FF888888' } }
+  }
+
+  // ── Hoja 4: Ventas ────────────────────────────────────────────────────────
+  const ws4 = wb.addWorksheet('Ventas')
+  ws4.columns = [{ width: 28 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 }]
+  sheetHeader(ws4, `VENTAS DEL DÍA · ${fecha}`)
+  ws4.addRow([])
+  headRow(ws4, ['Producto', 'Unidades vendidas', 'En degustación', '', '', '', '', ''])
+
+  const ventasPorProd = {}
+  visitas.forEach(v => v.productos?.forEach(p => {
+    if (Number(p.vendidos) > 0) ventasPorProd[p.nombre] = (ventasPorProd[p.nombre] || 0) + Number(p.vendidos)
+  }))
+  const ordVentas = Object.entries(ventasPorProd).sort(([, a], [, b]) => b - a)
+  ordVentas.forEach(([nombre, cant]) => {
+    const deg = totalesDeg[nombre] || 0
+    const r   = dataRow(ws4, [nombre, cant, deg > 0 ? deg : '—', '', '', '', '', ''])
+    r.getCell(1).alignment = { horizontal: 'left' }
+  })
+  if (ordVentas.length === 0) {
+    ws4.addRow(['Sin ventas registradas para este día.'])
+      .getCell(1).font = { italic: true, color: { argb: 'FF888888' } }
+  }
+
+  // ── Guardar ────────────────────────────────────────────────────────────────
+  const buffer = await wb.xlsx.writeBuffer()
+  saveAs(
+    new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+    `reporte_diario_${fecha}.xlsx`,
+  )
 }

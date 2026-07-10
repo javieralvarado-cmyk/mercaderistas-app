@@ -102,6 +102,9 @@ export default function MercaderistaHome() {
       </div>
 
       <div className="contenedor" style={{ paddingTop: '16px' }}>
+        {/* Recordatorio de credenciales (solo si la cuenta tiene clave guardada y no se ha descartado) */}
+        {!preview && perfil?.clave && <RecordatorioClave email={perfil.email} clave={perfil.clave} />}
+
         {/* Fecha — tarjeta de bienvenida */}
         <div style={{
           background: 'var(--grad-marca)',
@@ -170,7 +173,7 @@ export default function MercaderistaHome() {
 
           return (
             <div key={super_.id} className="card" style={{
-              borderLeft: `4px solid ${estado === 'completada' ? 'var(--verde)' : estado === 'en_curso' ? 'var(--amarillo)' : '#E0E0E0'}`
+              borderLeft: `4px solid ${estado === 'completada' ? 'var(--verde)' : estado === 'en_curso' ? 'var(--amarillo)' : 'var(--rojo)'}`
             }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
                 <div>
@@ -216,6 +219,36 @@ export default function MercaderistaHome() {
           )
         })}
       </div>
+    </div>
+  )
+}
+
+function RecordatorioClave({ email, clave }) {
+  const [visible, setVisible] = useState(true)
+  const [verClave, setVerClave] = useState(false)
+  if (!visible) return null
+  return (
+    <div style={{
+      background: '#FFF8E1', border: '1.5px solid #FFD400',
+      borderRadius: 12, padding: '12px 16px', marginBottom: 14,
+      display: 'flex', alignItems: 'flex-start', gap: 10,
+    }}>
+      <span style={{ fontSize: 22 }}>🔑</span>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Tus datos de acceso</div>
+        <div style={{ fontSize: 13, color: '#444' }}>👤 <b>{email.replace('@freshcopty.com', '')}</b></div>
+        <div style={{ fontSize: 13, color: '#444', display: 'flex', alignItems: 'center', gap: 6 }}>
+          🔒 {verClave ? clave : '••••••••'}
+          <button onClick={() => setVerClave(v => !v)}
+            style={{ fontSize: 11, background: '#eee', border: 'none', borderRadius: 6, padding: '2px 7px', cursor: 'pointer' }}>
+            {verClave ? 'Ocultar' : 'Ver'}
+          </button>
+        </div>
+      </div>
+      <button onClick={() => setVisible(false)}
+        style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#999', lineHeight: 1 }}>
+        ✕
+      </button>
     </div>
   )
 }

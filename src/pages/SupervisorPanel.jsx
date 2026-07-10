@@ -276,6 +276,8 @@ export default function SupervisorPanel() {
     { id: 'degustaciones',label: '🎉 Degust.' },
     { id: 'pedido',       label: '🧮 Pedido sugerido' },
     { id: 'reporte',      label: '📄 Reporte' },
+    { id: 'ranking',      label: '🏆 Ranking' },
+    { id: 'equipo',       label: '👥 Equipo' },
   ]
 
   return (
@@ -538,6 +540,14 @@ export default function SupervisorPanel() {
           </>
         )}
 
+        {/* ─── TAB: RANKING ─── */}
+        {tab === 'ranking' && (
+          <TabRanking visitas={visitas} cumplimiento={cumplimiento} fecha={filtroFecha} />
+        )}
+
+        {/* ─── TAB: EQUIPO ─── */}
+        {tab === 'equipo' && <TabEquipo />}
+
         {/* ─── TAB: CATÁLOGO ─── */}
         {tab === 'catalogo' && <CatalogoAdmin />}
 
@@ -602,6 +612,210 @@ export default function SupervisorPanel() {
             ))}
           </>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ─── COMPONENTE: RANKING DE MERCADERISTAS ──────────────────────────────────
+const MEDALLAS = ['🥇', '🥈', '🥉']
+
+function TabRanking({ visitas, cumplimiento, fecha }) {
+  // Calcular métricas por mercaderista
+  const ranking = cumplimiento.map(c => {
+    const vm      = visitas.filter(v => v.mercaderistaName === c.nombre)
+    const ctm     = vm.filter(v => v.tiempoEnLocal > 0)
+    const promMin = ctm.length > 0 ? Math.round(ctm.reduce((s, v) => s + v.tiempoEnLocal, 0) / ctm.length) : null
+
+    // Puntos por tiempo: ideal 15–45 min = 40 pts, fuera = proporcional
+    let ptsTiempo = 0
+    if (promMin !== null) {
+      if      (promMin >= 15 && promMin <= 45) ptsTiempo = 40
+      else if (promMin < 15)                   ptsTiempo = Math.round((promMin / 15) * 40)
+      else                                     ptsTiempo = Math.max(0, Math.round(40 - ((promMin - 45) / 45) * 40))
+    }
+
+    const ptsRuta  = Math.round(c.pct * 0.6)     // 60 pts máx
+    const score    = ptsRuta + (c.total > 0 ? ptsTiempo : 0)
+
+    return { ...c, promMin, ptsTiempo, ptsRuta, score, visitasCount: vm.length }
+  })
+
+  // Ordenar por score desc, luego por pct desc
+  ranking.sort((a, b) => b.score - a.score || b.pct - a.pct)
+
+  const scoreMax = ranking[0]?.score || 1
+
+  return (
+    <div>
+      <div className="seccion-titulo">🏆 Ranking de Mercaderistas</div>
+      <div className="alerta alerta-info" style={{ marginBottom: '12px', fontSize: '12px' }}>
+        Fecha: <b>{fecha}</b> · Puntaje = cumplimiento (60 pts) + tiempo óptimo 15–45 min (40 pts)
+      </div>
+
+      {ranking.length === 0 && (
+        <div className="alerta alerta-info">No hay datos de cumplimiento para esta fecha.</div>
+      )}
+
+      {ranking.map((m, i) => {
+        const colorScore = m.score >= 80 ? 'var(--verde)' : m.score >= 50 ? 'var(--amarillo)' : 'var(--rojo)'
+        const barW       = Math.round((m.score / 100) * 100)
+        return (
+          <div key={m.nombre} className="card" style={{
+            marginBottom: '10px',
+            border: i === 0 ? '2px solid #FFD700' : i === 1 ? '2px solid #C0C0C0' : i === 2 ? '2px solid #CD7F32' : '1px solid #E0E0E0',
+          }}>
+            {/* Cabecera */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+              <span style={{ fontSize: '28px', lineHeight: 1 }}>{MEDALLAS[i] || `#${i + 1}`}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 800, fontSize: '16px' }}>{m.nombre}</div>
+                <div style={{ fontSize: '12px', color: 'var(--gris)' }}>
+                  {m.visitadas}/{m.total} tiendas · {m.visitasCount} visita{m.visitasCount !== 1 ? 's' : ''}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '24px', fontWeight: 900, color: colorScore, lineHeight: 1 }}>{m.score}</div>
+                <div style={{ fontSize: '11px', color: 'var(--gris)' }}>pts</div>
+              </div>
+            </div>
+
+            {/* Barra de puntaje */}
+            <div style={{ height: 8, background: '#E6EEF5', borderRadius: 4, overflow: 'hidden', marginBottom: '10px' }}>
+              <div style={{ height: '100%', width: `${barW}%`, background: colorScore, borderRadius: 4, transition: 'width .4s' }} />
+            </div>
+
+            {/* Métricas */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+              <div style={{ background: '#F5F5F5', borderRadius: 8, padding: '8px', textAlign: 'center' }}>
+                <div style={{ fontSize: '18px', fontWeight: 800, color: m.pct === 100 ? 'var(--verde)' : m.pct >= 50 ? 'var(--amarillo)' : 'var(--rojo)' }}>
+                  {m.pct}%
+                </div>
+                <div style={{ fontSize: '10px', color: 'var(--gris)' }}>Cumplimiento</div>
+              </div>
+              <div style={{ background: '#F5F5F5', borderRadius: 8, padding: '8px', textAlign: 'center' }}>
+                <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--azul)' }}>
+                  {m.promMin !== null ? `${m.promMin}m` : '—'}
+                </div>
+                <div style={{ fontSize: '10px', color: 'var(--gris)' }}>Tiempo prom.</div>
+              </div>
+              <div style={{ background: '#F5F5F5', borderRadius: 8, padding: '8px', textAlign: 'center' }}>
+                <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--marino)' }}>
+                  {m.ptsRuta + (m.total > 0 ? m.ptsTiempo : 0) === m.score ? `${m.ptsRuta}+${m.ptsTiempo}` : m.score}
+                </div>
+                <div style={{ fontSize: '10px', color: 'var(--gris)' }}>Ruta+Tiempo</div>
+              </div>
+            </div>
+
+            {/* Faltantes */}
+            {m.faltantes.length > 0 && (
+              <div style={{ fontSize: '12px', color: 'var(--rojo)', marginTop: '8px' }}>
+                ❌ Pendientes: {m.faltantes.map(t => t.name).join(', ')}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── COMPONENTE: PESTAÑA EQUIPO ────────────────────────────────────────────
+const APP_URL = 'https://mercaderistas-d83a2.web.app'
+
+const LINKS_ACTIVACION = [
+  { token: 'darkiris', nombre: 'Darkiris', role: 'mercaderista' },
+  { token: 'digna',    nombre: 'Digna',    role: 'mercaderista' },
+  { token: 'demo',     nombre: 'Demo',     role: 'mercaderista' },
+]
+
+function TabEquipo() {
+  const [usuarios, setUsuarios]     = useState([])
+  const [cargando, setCargando]     = useState(true)
+  const [verClaves, setVerClaves]   = useState({})
+  const [copiado,  setCopiado]      = useState('')
+
+  useEffect(() => {
+    getDocs(collection(db, 'users')).then(snap => {
+      setUsuarios(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.role !== 'supervisor'))
+      setCargando(false)
+    })
+  }, [])
+
+  function copiar(texto, key) {
+    navigator.clipboard.writeText(texto)
+    setCopiado(key)
+    setTimeout(() => setCopiado(''), 1500)
+  }
+
+  return (
+    <div style={{ padding: 16, maxWidth: 600, margin: '0 auto' }}>
+      <div className="seccion-titulo">👥 Equipo</div>
+
+      {/* Links de activación */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ fontWeight: 800, marginBottom: 12, color: 'var(--marca-azul)' }}>
+          Links para enviar por WhatsApp
+        </div>
+        <p style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
+          Manda este link a cada persona. Ellas abren, llenan nombre, apellido y contraseña, y ya tienen acceso.
+        </p>
+        {LINKS_ACTIVACION.map(({ token, nombre }) => {
+          const link = `${APP_URL}/activar/${token}`
+          const key = 'link_' + token
+          return (
+            <div key={token} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 700, minWidth: 80 }}>{nombre}</span>
+              <code style={{ fontSize: 12, background: '#f4f4f4', padding: '4px 8px', borderRadius: 6, flex: 1 }}>{link}</code>
+              <button
+                onClick={() => copiar(link, key)}
+                style={{ background: copiado === key ? '#4caf50' : 'var(--marca-azul)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                {copiado === key ? '✅ Copiado' : 'Copiar'}
+              </button>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Usuarios activos con credenciales */}
+      <div className="card">
+        <div style={{ fontWeight: 800, marginBottom: 12, color: 'var(--marca-azul)' }}>
+          Credenciales del equipo
+        </div>
+        {cargando && <div className="spinner" />}
+        {!cargando && usuarios.length === 0 && (
+          <p style={{ color: '#999', fontSize: 14 }}>Nadie ha activado su cuenta aún.</p>
+        )}
+        {usuarios.map(u => {
+          const keyC = 'clave_' + u.id
+          return (
+            <div key={u.id} style={{ borderBottom: '1px solid #eee', paddingBottom: 12, marginBottom: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 16 }}>{u.name}</div>
+              <div style={{ fontSize: 13, color: '#555', marginBottom: 4 }}>
+                📧 {u.email} &nbsp;·&nbsp; 🏷️ {u.role}
+              </div>
+              {u.clave ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 13, color: '#333' }}>
+                    🔑 {verClaves[u.id] ? u.clave : '••••••••'}
+                  </span>
+                  <button
+                    onClick={() => setVerClaves(v => ({ ...v, [u.id]: !v[u.id] }))}
+                    style={{ fontSize: 11, background: '#eee', border: 'none', borderRadius: 6, padding: '3px 8px', cursor: 'pointer' }}>
+                    {verClaves[u.id] ? 'Ocultar' : 'Ver'}
+                  </button>
+                  <button
+                    onClick={() => copiar(u.clave, keyC)}
+                    style={{ fontSize: 11, background: copiado === keyC ? '#4caf50' : '#ddd', border: 'none', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', color: copiado === keyC ? '#fff' : '#333' }}>
+                    {copiado === keyC ? '✅' : 'Copiar'}
+                  </button>
+                </div>
+              ) : (
+                <span style={{ fontSize: 12, color: '#999' }}>Sin contraseña guardada</span>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )

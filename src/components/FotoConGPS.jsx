@@ -2,12 +2,14 @@ import { useState, useRef } from 'react'
 import { subirImagen } from '../services/cloudinary'
 import { getGPS } from '../services/gps'
 
-// Componente de captura de foto con GPS automático
-export default function FotoConGPS({ etiqueta, storageRuta, onFoto }) {
-  const [estado, setEstado] = useState('idle') // idle | capturando | subiendo | lista | error
+// obligatoria=true → muestra botón Cámara (primario) + Galería (secundario)
+// obligatoria=false → un solo botón (galería/cámara según el SO)
+export default function FotoConGPS({ etiqueta, storageRuta, onFoto, obligatoria = false }) {
+  const [estado, setEstado] = useState('idle')
   const [fotoData, setFotoData] = useState(null)
   const [preview, setPreview] = useState(null)
-  const inputRef = useRef()
+  const camaraRef = useRef()
+  const galeriaRef = useRef()
 
   async function handleCambioFoto(e) {
     const archivo = e.target.files?.[0]
@@ -17,19 +19,10 @@ export default function FotoConGPS({ etiqueta, storageRuta, onFoto }) {
     setPreview(URL.createObjectURL(archivo))
 
     try {
-      // Capturar GPS en el momento de la foto
       const gps = await getGPS()
       setEstado('subiendo')
-
-      // Subir a Cloudinary
       const url = await subirImagen(archivo, storageRuta)
-
-      const datos = {
-        url,
-        gps,
-        timestamp: new Date().toISOString(),
-        nombre: archivo.name
-      }
+      const datos = { url, gps, timestamp: new Date().toISOString(), nombre: archivo.name }
       setFotoData(datos)
       setEstado('lista')
       onFoto(datos)
@@ -44,28 +37,37 @@ export default function FotoConGPS({ etiqueta, storageRuta, onFoto }) {
     setPreview(null)
     setEstado('idle')
     onFoto(null)
-    if (inputRef.current) inputRef.current.value = ''
+    if (camaraRef.current) camaraRef.current.value = ''
+    if (galeriaRef.current) galeriaRef.current.value = ''
   }
 
   return (
     <div>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        style={{ display: 'none' }}
-        onChange={handleCambioFoto}
-      />
+      {/* Input cámara (capture=environment → abre cámara trasera en móvil) */}
+      <input ref={camaraRef} type="file" accept="image/*" capture="environment"
+        style={{ display: 'none' }} onChange={handleCambioFoto} />
+      {/* Input galería (sin capture → abre el explorador de fotos) */}
+      <input ref={galeriaRef} type="file" accept="image/*"
+        style={{ display: 'none' }} onChange={handleCambioFoto} />
 
       {estado === 'idle' && (
-        <button
-          type="button"
-          className="btn-camara"
-          onClick={() => inputRef.current?.click()}
-        >
-          📷 {etiqueta || 'Tomar foto'}
-        </button>
+        obligatoria ? (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" className="btn btn-primario btn-sm" style={{ flex: 2 }}
+              onClick={() => camaraRef.current?.click()}>
+              📷 Cámara
+            </button>
+            <button type="button" className="btn btn-outline btn-sm" style={{ flex: 1, fontSize: 12 }}
+              onClick={() => galeriaRef.current?.click()}>
+              🖼️ Galería
+            </button>
+          </div>
+        ) : (
+          <button type="button" className="btn-camara"
+            onClick={() => camaraRef.current?.click()}>
+            📷 {etiqueta || 'Tomar foto'}
+          </button>
+        )
       )}
 
       {(estado === 'capturando' || estado === 'subiendo') && (
@@ -77,7 +79,8 @@ export default function FotoConGPS({ etiqueta, storageRuta, onFoto }) {
       {estado === 'error' && (
         <div>
           <div className="alerta alerta-error">⚠️ Error al subir la foto. Intenta de nuevo.</div>
-          <button type="button" className="btn-camara" onClick={() => { setEstado('idle'); inputRef.current?.click() }}>
+          <button type="button" className="btn-camara"
+            onClick={() => { setEstado('idle'); camaraRef.current?.click() }}>
             🔄 Reintentar
           </button>
         </div>
@@ -89,12 +92,9 @@ export default function FotoConGPS({ etiqueta, storageRuta, onFoto }) {
           <div className="foto-badge-gps">
             ✅ GPS: {fotoData?.gps?.lat?.toFixed(5)}, {fotoData?.gps?.lng?.toFixed(5)}
           </div>
-          <button
-            type="button"
-            onClick={quitarFoto}
+          <button type="button" onClick={quitarFoto}
             style={{ marginTop: '8px', fontSize: '13px', color: 'var(--rojo)',
-              background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
-          >
+              background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
             🗑️ Quitar foto
           </button>
         </div>
