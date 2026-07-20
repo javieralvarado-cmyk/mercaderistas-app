@@ -3,7 +3,7 @@ import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'fire
 import { db } from '../services/firebase'
 import { format, subDays } from 'date-fns'
 import { PRODUCTOS, aUnidades } from '../services/datos'
-import { stockCentral, stockAnaquel } from '../services/inventario'
+import { stockCentral, stockAnaquel, mermaResumen } from '../services/inventario'
 
 // Inventario: central (almacén) y en anaquel (tiendas).
 export default function InventarioTab() {
@@ -14,9 +14,90 @@ export default function InventarioTab() {
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
         <button onClick={() => setVista('central')} style={toggle(vista === 'central')}>🏬 Central (almacén)</button>
         <button onClick={() => setVista('anaquel')} style={toggle(vista === 'anaquel')}>🏪 Anaquel (tiendas)</button>
+        <button onClick={() => setVista('merma')} style={toggle(vista === 'merma')}>🗑️ Merma</button>
       </div>
-      {vista === 'central' ? <Central /> : <Anaquel />}
+      {vista === 'central' && <Central />}
+      {vista === 'anaquel' && <Anaquel />}
+      {vista === 'merma' && <Merma />}
     </div>
+  )
+}
+
+// ─── MERMA: producto retirado (vencido/dañado) por las mercaderistas ──
+function Merma() {
+  const [cargando, setCargando] = useState(true)
+  const [data, setData] = useState({ total: 0, porProducto: [], porMotivo: [], porTienda: [] })
+
+  useEffect(() => { cargar() }, [])
+
+  async function cargar() {
+    setCargando(true)
+    try {
+      const desde = format(subDays(new Date(), 30), 'yyyy-MM-dd')
+      const snap = await getDocs(query(collection(db, 'visits'), where('fecha', '>=', desde)))
+      setData(mermaResumen(snap.docs.map(d => d.data())))
+    } catch (err) {
+      console.error('Error cargando merma:', err)
+      setData({ total: 0, porProducto: [], porMotivo: [], porTienda: [] })
+    }
+    setCargando(false)
+  }
+
+  if (cargando) return <div className="spinner" />
+
+  return (
+    <>
+      <div className="alerta alerta-info" style={{ fontSize: 12 }}>
+        Producto retirado del anaquel (vencido / dañado) registrado por las mercaderistas en sus visitas (últimos 30 días).
+      </div>
+
+      <div style={{ display: 'flex', gap: 12, margin: '12px 0', flexWrap: 'wrap' }}>
+        <div style={{ background: 'var(--rojo, #ef4444)', color: '#fff', borderRadius: 12, padding: '12px 18px', textAlign: 'center' }}>
+          <div style={{ fontSize: 24, fontWeight: 900 }}>{data.total}</div>
+          <div style={{ fontSize: 12 }}>unidades de merma</div>
+        </div>
+        {data.porMotivo.map(m => (
+          <div key={m.motivo} style={{ background: '#fff', border: '1px solid #eee', borderRadius: 12, padding: '12px 16px', textAlign: 'center' }}>
+            <div style={{ fontSize: 20, fontWeight: 800 }}>{m.cantidad}</div>
+            <div style={{ fontSize: 12, color: '#777' }}>{m.motivo}</div>
+          </div>
+        ))}
+      </div>
+
+      {data.total === 0 ? (
+        <div className="alerta alerta-info">Sin merma registrada en los últimos 30 días. 🎉</div>
+      ) : (
+        <>
+          <div style={{ overflowX: 'auto', marginBottom: 12 }}>
+            <table style={tbl}>
+              <thead><tr><th style={th}>Producto</th><th style={thR}>Merma (u)</th></tr></thead>
+              <tbody>
+                {data.porProducto.filter(p => p.cantidad > 0).map(p => (
+                  <tr key={p.id}>
+                    <td style={td}><b>{p.nombre}</b><div style={{ fontSize: 11, color: '#999' }}>{p.marca}</div></td>
+                    <td style={{ ...tdR, fontWeight: 800, color: 'var(--rojo, #ef4444)' }}>{p.cantidad}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{ fontWeight: 800, margin: '6px 0 8px' }}>Por tienda</div>
+          {data.porTienda.map((t, i) => (
+            <div key={i} style={{ background: '#fff', border: '1px solid #eee', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
+              <b style={{ fontSize: 14 }}>🏪 {t.supermercadoName}</b>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
+                {t.items.map((it, j) => (
+                  <span key={j} style={{ fontSize: 12, background: '#fff5f5', border: '1px solid #fed7d7', borderRadius: 6, padding: '3px 8px' }}>
+                    {it.nombre}: <b>{it.cantidad}</b> · {it.motivo} <span style={{ color: '#aaa' }}>({it.fecha?.slice(5)})</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+    </>
   )
 }
 

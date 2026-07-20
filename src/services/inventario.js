@@ -135,6 +135,34 @@ export function ventasPorDia(visitas = []) {
   }
 }
 
+// ─── MERMA ──────────────────────────────────────────────────────
+// Producto retirado del anaquel (vencido/dañado), capturado en cada visita.
+export function mermaResumen(visitas = []) {
+  const porProd = Object.fromEntries(PRODUCTOS.map(p => [p.id, 0]))
+  const porMotivo = {}
+  const porTienda = {}
+  let total = 0
+  visitas.filter(v => v.estado === 'completada').forEach(v => {
+    ;(v.merma || []).forEach(m => {
+      const c = num(m.cantidad)
+      if (c <= 0) return
+      total += c
+      if (porProd[m.id] != null) porProd[m.id] += c
+      const mot = m.motivo || 'Otro'
+      porMotivo[mot] = (porMotivo[mot] || 0) + c
+      const t = v.supermercadoName || '—'
+      if (!porTienda[t]) porTienda[t] = []
+      porTienda[t].push({ nombre: m.nombre, cantidad: c, motivo: mot, fecha: v.fecha })
+    })
+  })
+  return {
+    total,
+    porProducto: PRODUCTOS.map(p => ({ ...p, cantidad: porProd[p.id] || 0 })),
+    porMotivo: Object.entries(porMotivo).map(([motivo, cantidad]) => ({ motivo, cantidad })).sort((a, b) => b.cantidad - a.cantidad),
+    porTienda: Object.entries(porTienda).map(([supermercadoName, items]) => ({ supermercadoName, items })).sort((a, b) => a.supermercadoName.localeCompare(b.supermercadoName)),
+  }
+}
+
 // Unidades vendidas totales por producto (para ranking / barras).
 export function ventasPorProducto(visitas = []) {
   const tot = Object.fromEntries(PRODUCTOS.map(p => [p.id, 0]))
