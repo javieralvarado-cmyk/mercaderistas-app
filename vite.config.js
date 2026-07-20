@@ -7,6 +7,11 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        // El bundle supera los 2 MiB por defecto de workbox; subimos el límite
+        // para que el service worker pueda precachearlo (offline).
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+      },
       manifest: {
         name: 'FreshCo · Mercaderistas',
         short_name: 'FreshCo',
