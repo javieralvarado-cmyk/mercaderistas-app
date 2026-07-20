@@ -9,6 +9,7 @@ import Logo from '../components/Logo'
 const INVITACIONES = {
   darkiris: { nombreDefault: 'Darkiris', email: 'darkiris@freshcopty.com', role: 'mercaderista' },
   digna:    { nombreDefault: 'Digna',    email: 'digna@freshcopty.com',    role: 'mercaderista' },
+  solimar:  { nombreDefault: 'Solimar',  email: 'solimar@freshcopty.com',  role: 'mercaderista' },
   demo:     { nombreDefault: 'Demo',     email: 'demo@freshcopty.com',     role: 'mercaderista' },
 }
 

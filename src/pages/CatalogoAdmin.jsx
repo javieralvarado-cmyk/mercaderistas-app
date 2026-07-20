@@ -9,7 +9,7 @@ const DIA_LABEL = {
   lunes: 'Lunes', martes: 'Martes', miercoles: 'Miércoles',
   jueves: 'Jueves', viernes: 'Viernes', sabado: 'Sábado'
 }
-const MERCADERISTAS = ['Sin asignar', 'Darkiris', 'Digna']
+const MERCADERISTAS = ['Sin asignar', 'Darkiris', 'Digna', 'Solimar']
 
 // Ruta de Darkiris según el Excel (nombre de tienda → día)
 const RUTA_DARKIRIS = {
@@ -274,7 +274,7 @@ export default function CatalogoAdmin() {
 
       {filtroMerc === 'Sin asignar' && tiendas.length > 0 && (
         <div className="alerta alerta-info" style={{ marginBottom: '12px', fontSize: '12px' }}>
-          💡 Estas son todas las tiendas. Para armar una ruta, pulsa <b>👤 Darkiris</b> o <b>👤 Digna</b>
+          💡 Estas son todas las tiendas. Para armar una ruta, pulsa el nombre de la mercaderista
           arriba y usa el botón <b>➕ Asignar tiendas</b>.
         </div>
       )}
