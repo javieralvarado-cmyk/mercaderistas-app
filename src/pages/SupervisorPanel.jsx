@@ -13,6 +13,9 @@ import OrdenesAdmin from './OrdenesAdmin'
 import TiemposEntrega from './TiemposEntrega'
 import PedidoSugerido from './PedidoSugerido'
 import ReporteDiario from './ReporteDiario'
+import ComisionesTab from './ComisionesTab'
+import InventarioTab from './InventarioTab'
+import TendenciaTab from './TendenciaTab'
 import Logo from '../components/Logo'
 
 // Fix icono leaflet
@@ -278,6 +281,9 @@ export default function SupervisorPanel() {
     { id: 'reporte',      label: '📄 Reporte' },
     { id: 'ranking',      label: '🏆 Ranking' },
     { id: 'equipo',       label: '👥 Equipo' },
+    { id: 'comisiones',   label: '💵 Comisiones' },
+    { id: 'inventario',   label: '📦 Inventario' },
+    { id: 'tendencia',    label: '📈 Tendencia' },
   ]
 
   return (
@@ -547,6 +553,15 @@ export default function SupervisorPanel() {
 
         {/* ─── TAB: EQUIPO ─── */}
         {tab === 'equipo' && <TabEquipo />}
+
+        {/* ─── TAB: COMISIONES ─── */}
+        {tab === 'comisiones' && <ComisionesTab />}
+
+        {/* ─── TAB: INVENTARIO ─── */}
+        {tab === 'inventario' && <InventarioTab />}
+
+        {/* ─── TAB: TENDENCIA ─── */}
+        {tab === 'tendencia' && <TendenciaTab />}
 
         {/* ─── TAB: CATÁLOGO ─── */}
         {tab === 'catalogo' && <CatalogoAdmin />}
