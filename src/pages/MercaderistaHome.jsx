@@ -73,6 +73,15 @@ export default function MercaderistaHome() {
     completada: { clase: 'badge-verde',    icono: '✅', texto: 'Completada' },
   }[estado] || { clase: 'badge-gris', icono: '⬜', texto: 'Pendiente' })
 
+  // Prioridad: primero las NO visitadas (pendientes), luego en curso, al final completadas.
+  const ORDEN_ESTADO = { pendiente: 0, en_curso: 1, completada: 2 }
+  const supermercadosOrdenados = [...supermercados].sort((a, b) => {
+    const da = ORDEN_ESTADO[estadoSuper(a.id)] ?? 0
+    const db_ = ORDEN_ESTADO[estadoSuper(b.id)] ?? 0
+    if (da !== db_) return da - db_
+    return (a.name || '').localeCompare(b.name || '')
+  })
+
   if (cargando) return <div className="spinner" style={{ height: '100vh' }} />
 
   return (
@@ -166,7 +175,7 @@ export default function MercaderistaHome() {
           </div>
         )}
 
-        {supermercados.map(super_ => {
+        {supermercadosOrdenados.map(super_ => {
           const estado = estadoSuper(super_.id)
           const badge = badgeEstado(estado)
           const visita = visitasHoy.find(v => v.supermercadoId === super_.id)

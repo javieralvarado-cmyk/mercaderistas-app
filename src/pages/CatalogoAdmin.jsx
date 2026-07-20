@@ -11,6 +11,21 @@ const DIA_LABEL = {
 }
 const MERCADERISTAS = ['Sin asignar', 'Darkiris', 'Digna', 'Solimar']
 
+// Zonas geográficas: qué provincia(s) le tocan a cada mercaderista.
+// Se usa para auto-asignar de un solo golpe las tiendas "Sin asignar" según su ubicación.
+//   Darkiris: Panamá Oeste hasta Santiago (incluye Herrera/Chitré, en la misma ruta)
+//   Solimar:  Ciudad de Panamá
+//   Digna:    Chiriquí
+const ZONAS = {
+  Darkiris: ['Panamá Oeste', 'Coclé', 'Veraguas', 'Herrera'],
+  Solimar:  ['Panamá'],
+  Digna:    ['Chiriquí'],
+}
+
+function mercaderistaPorZona(provincia) {
+  return Object.keys(ZONAS).find(m => ZONAS[m].includes(provincia)) || null
+}
+
 // Ruta de Darkiris según el Excel (nombre de tienda → día)
 const RUTA_DARKIRIS = {
   '99 Valle Hermoso': 'lunes',
@@ -114,6 +129,35 @@ export default function CatalogoAdmin() {
     setTiendas(actualizadas)
     setGuardando(false)
     setFiltroMerc('Darkiris')
+  }
+
+  // Auto-asigna TODAS las tiendas por sector geográfico (provincia → mercaderista).
+  //   Darkiris: Panamá Oeste, Coclé, Veraguas, Herrera (Oeste hasta Santiago/Chitré)
+  //   Solimar:  Panamá (ciudad)          Digna: Chiriquí
+  // Solo toca tiendas que caigan en una zona; no reasigna días (eso se hace por mercaderista).
+  async function autoAsignarPorZona() {
+    const aAsignar = tiendas.filter(t => mercaderistaPorZona(t.provincia))
+    if (aAsignar.length === 0) {
+      alert('Primero carga la base de datos de tiendas.')
+      return
+    }
+    const resumen = Object.keys(ZONAS)
+      .map(m => `• ${m}: ${aAsignar.filter(t => mercaderistaPorZona(t.provincia) === m).length} tiendas (${ZONAS[m].join(', ')})`)
+      .join('\n')
+    if (!confirm(`Se repartirán ${aAsignar.length} tiendas por sector:\n\n${resumen}\n\n(Colón y otras provincias fuera de zona quedan sin asignar. Esto sobrescribe la mercaderista asignada.) ¿Continuar?`)) return
+    setGuardando(true)
+    const batch = writeBatch(db)
+    const actualizadas = tiendas.map(t => {
+      const merc = mercaderistaPorZona(t.provincia)
+      if (!merc) return t
+      const nueva = { ...t, mercaderista: merc }
+      const { id, ...data } = nueva
+      batch.set(doc(db, 'supermarkets', id), data)
+      return nueva
+    })
+    await batch.commit()
+    setTiendas(actualizadas)
+    setGuardando(false)
   }
 
   function togglePick(id) {
@@ -262,8 +306,12 @@ export default function CatalogoAdmin() {
         ) : (
           <>
             <button className="btn btn-verde" style={{ flex: '1 1 100%', marginBottom: '4px' }}
+              disabled={guardando} onClick={autoAsignarPorZona}>
+              🗺️ Auto-repartir por sector (Darkiris Oeste·Solimar ciudad·Digna Chiriquí)
+            </button>
+            <button className="btn btn-outline" style={{ flex: '1 1 100%', marginBottom: '4px' }}
               disabled={guardando} onClick={autoAsignarDarkiris}>
-              📋 Auto-asignar ruta de Darkiris (del Excel)
+              📋 Auto-asignar ruta de Darkiris con días (del Excel)
             </button>
             <button className="btn btn-outline" style={{ flex: 1 }} onClick={nuevaTienda}>
               ➕ Agregar tienda
