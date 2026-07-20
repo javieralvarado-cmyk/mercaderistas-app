@@ -4,8 +4,8 @@
 // gpsAprox: false = coordenada exacta / verificada
 //           true  = aproximada (afinar pegando link de Google Maps)
 // Fuente Super 99: super99.com/sucursales
-// Afinado 2026-07-20: 20 coordenadas verificadas vía búsqueda web
-//   (near-place / latinoplaces / vymaps / mapcarta). Quedan 7 en true.
+// Afinado 2026-07-20: las 27 coordenadas antes aproximadas ya están
+//   verificadas (búsqueda web + pins/Plus Codes del supervisor). 0 en true.
 // ════════════════════════════════════════════════════════════
 
 export const TIENDAS_PANAMA = [
@@ -35,12 +35,12 @@ export const TIENDAS_PANAMA = [
   { chain: 'Super 99', name: '99 Los Andes Mall',    ciudad: 'San Miguelito', provincia: 'Panamá', lat: 9.0503, lng: -79.5098, gpsAprox: false },
   { chain: 'Super 99', name: '99 El Faro',           ciudad: 'Panamá',        provincia: 'Panamá', lat: 9.0165, lng: -79.4657, gpsAprox: false },
   { chain: 'Super 99', name: '99 Pedregal',          ciudad: 'Panamá',        provincia: 'Panamá', lat: 9.0577, lng: -79.4321, gpsAprox: false },
-  { chain: 'Super 99', name: '99 Balboa',            ciudad: 'Panamá',        provincia: 'Panamá', lat: 8.9560, lng: -79.5650, gpsAprox: true },
+  { chain: 'Super 99', name: '99 Balboa',            ciudad: 'Panamá',        provincia: 'Panamá', lat: 9.0238, lng: -79.4868, gpsAprox: false },
   { chain: 'Super 99', name: '99 Vista Hermosa',     ciudad: 'San Miguelito', provincia: 'Panamá', lat: 8.9987, lng: -79.5198, gpsAprox: false },
-  { chain: 'Super 99', name: '99 Calidonia',         ciudad: 'Panamá',        provincia: 'Panamá', lat: 8.9710, lng: -79.5340, gpsAprox: true },
-  { chain: 'Super 99', name: '99 Transístmica',      ciudad: 'Panamá',        provincia: 'Panamá', lat: 9.0300, lng: -79.5300, gpsAprox: true },
+  { chain: 'Super 99', name: '99 Calidonia',         ciudad: 'Panamá',        provincia: 'Panamá', lat: 8.9664, lng: -79.5399, gpsAprox: false },
+  { chain: 'Super 99', name: '99 Transístmica',      ciudad: 'Panamá',        provincia: 'Panamá', lat: 8.9937, lng: -79.5291, gpsAprox: false },
   { chain: 'Super 99', name: '99 San Lorenzo',       ciudad: 'San Miguelito', provincia: 'Panamá', lat: 9.1307, lng: -79.5337, gpsAprox: false },
-  { chain: 'Super 99', name: '99 Montemadero',       ciudad: 'San Miguelito', provincia: 'Panamá', lat: 9.1307, lng: -79.5337, gpsAprox: true },
+  { chain: 'Super 99', name: '99 Montemadero',       ciudad: 'Pacora',        provincia: 'Panamá', lat: 9.1039, lng: -79.2704, gpsAprox: false },
 
   // ───────────── SUPER 99 — Panamá Oeste ─────────────
   { chain: 'Super 99', name: '99 El Coco',           ciudad: 'La Chorrera', provincia: 'Panamá Oeste', lat: 8.8737, lng: -79.7992, gpsAprox: false },
@@ -75,16 +75,16 @@ export const TIENDAS_PANAMA = [
   { chain: 'El Machetazo', name: 'Machetazo Calidonia',    ciudad: 'Panamá',      provincia: 'Panamá',       lat: 8.9670, lng: -79.5395, gpsAprox: false },
   { chain: 'El Machetazo', name: 'Machetazo Chitré',       ciudad: 'Chitré',      provincia: 'Herrera',      lat: 7.9648, lng: -80.4314, gpsAprox: false },
   { chain: 'El Machetazo', name: 'Machetazo Costa Sur',    ciudad: 'Juan Díaz',   provincia: 'Panamá',       lat: 9.0361, lng: -79.4188, gpsAprox: false },
-  { chain: 'El Machetazo', name: 'Machetazo Coronado',     ciudad: 'Chame',       provincia: 'Panamá Oeste', lat: 8.4290, lng: -79.9880, gpsAprox: true },
+  { chain: 'El Machetazo', name: 'Machetazo Coronado',     ciudad: 'Chame',       provincia: 'Panamá Oeste', lat: 8.5446, lng: -79.9146, gpsAprox: false },
   { chain: 'El Machetazo', name: 'Machetazo MetroMall',    ciudad: 'San Miguelito',provincia: 'Panamá',      lat: 9.0515, lng: -79.4511, gpsAprox: false },
   { chain: 'El Machetazo', name: 'Machetazo Santa Ana',    ciudad: 'Panamá',      provincia: 'Panamá',       lat: 8.9546, lng: -79.5390, gpsAprox: false },
   { chain: 'El Machetazo', name: 'Machetazo Santiago',     ciudad: 'Santiago',    provincia: 'Veraguas',     lat: 8.1021, lng: -80.9665, gpsAprox: false },
   { chain: 'El Machetazo', name: 'Machetazo Penonomé',     ciudad: 'Penonomé',    provincia: 'Coclé',        lat: 8.4971, lng: -80.3340, gpsAprox: false },
-  { chain: 'El Machetazo', name: 'Machetazo Tocumen',      ciudad: 'Tocumen',     provincia: 'Panamá',       lat: 9.0850, lng: -79.3850, gpsAprox: true },
+  { chain: 'El Machetazo', name: 'Machetazo Tocumen',      ciudad: 'Tocumen',     provincia: 'Panamá',       lat: 9.0984, lng: -79.3890, gpsAprox: false },
 
   // ───────────── EL FUERTE ─────────────
   { chain: 'El Fuerte', name: 'El Fuerte Westland',      ciudad: 'Arraiján',      provincia: 'Panamá Oeste', lat: 8.9226, lng: -79.7049, gpsAprox: false },
-  { chain: 'El Fuerte', name: 'El Fuerte Burunga',       ciudad: 'Burunga',       provincia: 'Panamá Oeste', lat: 8.9590, lng: -79.6560, gpsAprox: true },
+  { chain: 'El Fuerte', name: 'El Fuerte Burunga',       ciudad: 'Burunga',       provincia: 'Panamá Oeste', lat: 8.9513, lng: -79.6685, gpsAprox: false },
   { chain: 'El Fuerte', name: 'El Fuerte San Miguelito', ciudad: 'San Miguelito', provincia: 'Panamá',       lat: 9.0294, lng: -79.5065, gpsAprox: false },
   { chain: 'El Fuerte', name: 'El Fuerte Villa Zaíta',   ciudad: 'Panamá',        provincia: 'Panamá',       lat: 9.0757, lng: -79.5239, gpsAprox: false },
 ]
