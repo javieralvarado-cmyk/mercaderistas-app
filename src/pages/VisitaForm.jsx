@@ -5,7 +5,7 @@ import { db } from '../services/firebase'
 import { subirImagen } from '../services/cloudinary'
 import { useAuth } from '../hooks/useAuth'
 import { getGPS, distanciaMetros } from '../services/gps'
-import { inventarioVacio, MARCAS, PRODUCTOS, POSICIONES_GONDOLA, ESTADOS_ANAQUEL, calcularVendidos, calcularPrecioPromo } from '../services/datos'
+import { inventarioVacio, MARCAS, PRODUCTOS, POSICIONES_GONDOLA, ESTADOS_ANAQUEL, MOTIVOS_MERMA, calcularVendidos, calcularPrecioPromo } from '../services/datos'
 import FotoConGPS from '../components/FotoConGPS'
 import SignatureCanvas from 'react-signature-canvas'
 import Logo from '../components/Logo'
@@ -34,6 +34,8 @@ export default function VisitaForm() {
     notas: '', foto: null,
   })
   const [notasGenerales, setNotasGenerales] = useState('')
+  const [mermaAbierto, setMermaAbierto] = useState(false)
+  const [merma, setMerma] = useState(PRODUCTOS.map(p => ({ id: p.id, nombre: p.nombre, marca: p.marca, cantidad: '', motivo: '' })))
   const [guardando, setGuardando]     = useState(false)
   const [error, setError]             = useState('')
 
@@ -52,8 +54,8 @@ export default function VisitaForm() {
 
   useEffect(() => {
     if (preview) return
-    try { localStorage.setItem(draftKey, JSON.stringify({ productos, degustacion, notasGenerales, ts: Date.now() })) } catch {}
-  }, [productos, degustacion, notasGenerales])
+    try { localStorage.setItem(draftKey, JSON.stringify({ productos, degustacion, notasGenerales, merma, ts: Date.now() })) } catch {}
+  }, [productos, degustacion, notasGenerales, merma])
 
   function restaurarBorrador() {
     try {
@@ -63,6 +65,7 @@ export default function VisitaForm() {
         if (d.productos)      setProductos(d.productos)
         if (d.degustacion)    setDegustacion(d.degustacion)
         if (d.notasGenerales) setNotasGenerales(d.notasGenerales)
+        if (d.merma) setMerma(d.merma)
       }
     } catch {}
   }
@@ -178,9 +181,13 @@ export default function VisitaForm() {
         precioPromo: p.promoActiva ? calcularPrecioPromo(p.precioAnaquel, p.promoPct) : '',
       }))
 
+      const mermaFinal = merma
+        .filter(m => Number(m.cantidad) > 0)
+        .map(m => ({ id: m.id, nombre: m.nombre, marca: m.marca, cantidad: Number(m.cantidad), motivo: m.motivo || 'Otro' }))
+
       await updateDoc(doc(db, 'visits', visitaId), {
         horaSalida, gpsSalida, tiempoEnLocal,
-        productos: productosFinal, degustacion, notasGenerales, firmaUrl,
+        productos: productosFinal, degustacion, notasGenerales, merma: mermaFinal, firmaUrl,
         estado: 'completada',
       })
       try { localStorage.removeItem(draftKey) } catch {}
@@ -500,6 +507,38 @@ export default function VisitaForm() {
                   </div>
                 </>
               )}
+            </div>
+          )}
+        </div>
+
+        {/* ── MERMA / PRODUCTO RETIRADO ────────────────────────────────── */}
+        <div className="card" style={{ marginTop: '8px', padding: 0, overflow: 'hidden' }}>
+          <button type="button" onClick={() => setMermaAbierto(v => !v)}
+            style={{ width: '100%', padding: '16px', background: mermaAbierto ? 'var(--rojo)' : 'white',
+              color: mermaAbierto ? 'white' : 'var(--azul-osc)', border: 'none', cursor: 'pointer',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 700, fontSize: '15px' }}>
+            <span>🗑️ Merma / producto retirado</span>
+            <span>{mermaAbierto ? '▲' : '▼'}</span>
+          </button>
+          {mermaAbierto && (
+            <div style={{ padding: '12px 16px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--gris)', marginBottom: '10px' }}>
+                Registra solo si retiraste producto vencido o dañado del anaquel. Deja en blanco lo que no aplique.
+              </div>
+              {merma.map((m, idx) => (
+                <div key={m.id} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ flex: 1, fontSize: '13px' }}>{m.nombre}</span>
+                  <input type="number" min="0" value={m.cantidad} placeholder="0"
+                    onChange={e => setMerma(prev => prev.map((x, i) => i === idx ? { ...x, cantidad: e.target.value } : x))}
+                    style={{ width: '64px', padding: '8px', border: '1.5px solid #E0E0E0', borderRadius: '8px', fontSize: '14px' }} />
+                  <select value={m.motivo}
+                    onChange={e => setMerma(prev => prev.map((x, i) => i === idx ? { ...x, motivo: e.target.value } : x))}
+                    style={{ padding: '8px', border: '1.5px solid #E0E0E0', borderRadius: '8px', fontSize: '13px' }}>
+                    <option value="">Motivo…</option>
+                    {MOTIVOS_MERMA.map(mo => <option key={mo} value={mo}>{mo}</option>)}
+                  </select>
+                </div>
+              ))}
             </div>
           )}
         </div>

@@ -42,6 +42,9 @@ export const ESTADOS_ANAQUEL = [
   'Mal puesto'
 ]
 
+// Motivos de merma (producto retirado del anaquel).
+export const MOTIVOS_MERMA = ['Vencido', 'Dañado', 'Empaque roto', 'Otro']
+
 // Crea un objeto vacío de inventario por producto
 export function inventarioVacio() {
   return PRODUCTOS.map(p => ({
