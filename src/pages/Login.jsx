@@ -16,10 +16,11 @@ export default function Login() {
     setError('')
     setCargando(true)
     try {
-      await login(email.trim(), password)
+      const correo = email.trim().includes('@') ? email.trim() : `${email.trim()}@freshcopty.com`
+      await login(correo, password)
       navigate('/')
     } catch {
-      setError('Email o contraseña incorrectos')
+      setError('Usuario o contraseña incorrectos')
     } finally {
       setCargando(false)
     }
@@ -54,14 +55,15 @@ export default function Login() {
           )}
           <form onSubmit={handleSubmit}>
             <div className="campo">
-              <label>Correo electrónico</label>
+              <label>Usuario</label>
               <input
-                type="email"
+                type="text"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="tu@correo.com"
+                placeholder="ej: darkiris"
                 required
-                autoComplete="email"
+                autoComplete="username"
+                autoCapitalize="none"
                 style={{ fontSize: '16px' }}
               />
             </div>

@@ -136,16 +136,16 @@ export default function OrdenesAdmin() {
     <div>
       <div className="seccion-titulo">📦 Órdenes de compra</div>
 
-      {/* ── Lector con IA: subir foto o PDF de la orden ── */}
+      {/* ── Lector de PDF gratis (local, sin servidor ni costo) ── */}
       <div className="card" style={{ background: '#F0F7FF', marginBottom: '16px' }}>
-        <div style={{ fontWeight: 700, marginBottom: '6px' }}>📸 Leer orden con IA</div>
+        <div style={{ fontWeight: 700, marginBottom: '6px' }}>📄 Leer orden desde PDF (gratis)</div>
         <div style={{ fontSize: '13px', color: 'var(--gris)', marginBottom: '10px' }}>
-          Toma una foto de la orden de compra (o sube un PDF). La IA detecta la tienda, los productos
-          y las cantidades, y crea la orden pendiente sola.
+          Sube el PDF de la orden de compra. Se lee aquí mismo en el navegador (sin costo): detecta la
+          tienda, los productos y las cantidades, y crea la orden pendiente sola.
         </div>
         <label className="btn btn-primario" style={{ display: 'inline-block', cursor: 'pointer' }}>
-          {leyendo ? '🔎 Leyendo orden…' : '📷 Subir foto / PDF de la orden'}
-          <input type="file" accept="image/*,application/pdf" hidden disabled={leyendo}
+          {leyendo ? '🔎 Leyendo PDF…' : '📄 Subir PDF de la orden'}
+          <input type="file" accept="application/pdf" hidden disabled={leyendo}
             onChange={subirYLeer} />
         </label>
 
@@ -166,9 +166,7 @@ export default function OrdenesAdmin() {
         )}
         {resultadoIA && !resultadoIA.ok && (
           <div className="alerta alerta-error" style={{ marginTop: '12px' }}>
-            ❌ {resultadoIA.error.includes('Failed to fetch') || resultadoIA.error.includes('NetworkError')
-              ? 'No se pudo conectar al lector. ¿Está corriendo el servidor? (npm run proxy)'
-              : resultadoIA.error}
+            ❌ {resultadoIA.error}
           </div>
         )}
       </div>

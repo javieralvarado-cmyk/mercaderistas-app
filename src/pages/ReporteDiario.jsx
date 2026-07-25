@@ -3,6 +3,7 @@ import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '../services/firebase'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { exportarReporteDinamicoExcel } from '../services/exportReporteDinamico'
 
 // Tarjeta de métrica pequeña
 function Metrica({ label, valor, color }) {
@@ -247,14 +248,23 @@ export default function ReporteDiario({ visitas, catalogo, alertas, degustacione
         <div className="alerta alerta-ok">✅ Sin alertas. Todo en orden.</div>
       )}
 
-      {/* ─ Botón imprimir ─ */}
-      <button
-        className="btn btn-outline"
-        style={{ width: '100%', marginTop: '12px', marginBottom: '8px' }}
-        onClick={() => window.print()}
-      >
-        🖨️ Imprimir / Guardar como PDF
-      </button>
+      {/* ─ Botones exportar ─ */}
+      <div style={{ display: 'flex', gap: '8px', marginTop: '12px', marginBottom: '8px' }}>
+        <button
+          className="btn btn-primario"
+          style={{ flex: 1 }}
+          onClick={() => exportarReporteDinamicoExcel({ visitas, cumplimiento, fecha, totalesDeg, degustaciones })}
+        >
+          📥 Exportar Excel
+        </button>
+        <button
+          className="btn btn-outline"
+          style={{ flex: 1 }}
+          onClick={() => window.print()}
+        >
+          🖨️ Imprimir / PDF
+        </button>
+      </div>
     </div>
   )
 }

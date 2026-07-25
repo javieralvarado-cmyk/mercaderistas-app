@@ -5,3 +5,6 @@ dist/
 server/.env
 scripts/serviceAccount.json
 # .env.production NO se ignora — contiene la URL pública de Render (no es un secreto)
+.firebase/
+.claude/
+.DS_Store

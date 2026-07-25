@@ -6,11 +6,19 @@ import VisitaForm from './pages/VisitaForm'
 import SupervisorPanel from './pages/SupervisorPanel'
 import VisitaDetalle from './pages/VisitaDetalle'
 import TransportistaHome from './pages/TransportistaHome'
+import Activar from './pages/Activar'
 
 function ProtegerRuta({ children, rol }) {
   const { user, perfil, cargando } = useAuth()
   if (cargando) return <div className="spinner" />
   if (!user) return <Navigate to="/login" />
+  if (!perfil) return (
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, textAlign: 'center' }}>
+      <div style={{ fontSize: 40 }}>⏳</div>
+      <p style={{ fontWeight: 700, color: '#333' }}>Tu cuenta está siendo configurada.</p>
+      <p style={{ color: '#666', fontSize: 14 }}>Avísale a Javier para que te asigne acceso.</p>
+    </div>
+  )
   if (rol && perfil?.role !== rol) return <Navigate to="/" />
   return children
 }
@@ -27,6 +35,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/activar/:token" element={<Activar />} />
       <Route path="/" element={
         <ProtegerRuta>
           {perfil?.role === 'supervisor'

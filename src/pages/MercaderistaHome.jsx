@@ -3,9 +3,12 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '../services/firebase'
 import { useAuth } from '../hooks/useAuth'
-import { format } from 'date-fns'
+import { format, differenceInCalendarDays, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import Logo from '../components/Logo'
+
+// Días sin visita a partir de los cuales una tienda se considera ATRASADA.
+const UMBRAL_ATRASO = 20
 
 // Quita acentos y pasa a minúsculas: "Miércoles" -> "miercoles"
 function normalizar(s) {
@@ -23,6 +26,8 @@ export default function MercaderistaHome() {
 
   const [supermercados, setSupermercados] = useState([])
   const [visitasHoy, setVisitasHoy] = useState([])
+  const [todasTiendas, setTodasTiendas] = useState([])   // todas las asignadas (cualquier día)
+  const [ultimaVisita, setUltimaVisita] = useState({})   // supermercadoId → fecha última visita completada
   const [cargando, setCargando] = useState(true)
 
   const hoy = format(new Date(), 'yyyy-MM-dd')
@@ -39,19 +44,30 @@ export default function MercaderistaHome() {
       )
       const todas = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       const deHoy = todas.filter(t => normalizar(t.dia) === diaHoy)
-      // Si no hay nada para hoy pero sí tiene tiendas, mostrarlas todas (para no dejar pantalla vacía)
+      setTodasTiendas(todas)
       setSupermercados(deHoy)
 
-      // Visitas de hoy de esta persona
+      // Historial de visitas de esta persona (todas, para saber cuánto lleva sin visitar cada tienda)
       if (!preview && user) {
         const vSnap = await getDocs(
-          query(collection(db, 'visits'),
-            where('mercaderistaId', '==', user.uid),
-            where('fecha', '==', hoy))
+          query(collection(db, 'visits'), where('mercaderistaId', '==', user.uid))
         )
-        setVisitasHoy(vSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+        const visitas = vSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+        setVisitasHoy(visitas.filter(v => v.fecha === hoy))
+
+        // Última fecha con visita COMPLETADA por tienda
+        const ultimas = {}
+        visitas.forEach(v => {
+          const completada = v.horaSalida || v.estado === 'completada'
+          if (!completada || !v.fecha) return
+          if (!ultimas[v.supermercadoId] || v.fecha > ultimas[v.supermercadoId]) {
+            ultimas[v.supermercadoId] = v.fecha
+          }
+        })
+        setUltimaVisita(ultimas)
       } else {
         setVisitasHoy([])
+        setUltimaVisita({})
       }
     } catch (err) {
       console.error('Error cargando datos mercaderista:', err)
@@ -72,6 +88,31 @@ export default function MercaderistaHome() {
     en_curso:   { clase: 'badge-amarillo', icono: '🟡', texto: 'En curso' },
     completada: { clase: 'badge-verde',    icono: '✅', texto: 'Completada' },
   }[estado] || { clase: 'badge-gris', icono: '⬜', texto: 'Pendiente' })
+
+  // Prioridad: primero las NO visitadas (pendientes), luego en curso, al final completadas.
+  const ORDEN_ESTADO = { pendiente: 0, en_curso: 1, completada: 2 }
+  const supermercadosOrdenados = [...supermercados].sort((a, b) => {
+    const da = ORDEN_ESTADO[estadoSuper(a.id)] ?? 0
+    const db_ = ORDEN_ESTADO[estadoSuper(b.id)] ?? 0
+    if (da !== db_) return da - db_
+    return (a.name || '').localeCompare(b.name || '')
+  })
+
+  // ATRASADAS: tiendas asignadas que NO tocan hoy pero llevan ≥ UMBRAL días sin visita
+  // (o nunca se han visitado). Suben al tope de la ruta. Solo modo real (no vista previa).
+  const idsHoy = new Set(supermercados.map(s => s.id))
+  const atrasadas = (preview ? [] : todasTiendas)
+    .filter(t => !idsHoy.has(t.id))   // las de hoy ya salen abajo con su prioridad
+    .map(t => {
+      const fecha = ultimaVisita[t.id]
+      const dias = fecha ? differenceInCalendarDays(parseISO(hoy), parseISO(fecha)) : null
+      return { ...t, _dias: dias, _nunca: !fecha }
+    })
+    .filter(t => t._nunca || t._dias >= UMBRAL_ATRASO)
+    .sort((a, b) => {
+      if (a._nunca !== b._nunca) return a._nunca ? -1 : 1   // nunca visitadas primero
+      return (b._dias || 0) - (a._dias || 0)                 // luego, más días sin visita primero
+    })
 
   if (cargando) return <div className="spinner" style={{ height: '100vh' }} />
 
@@ -102,6 +143,9 @@ export default function MercaderistaHome() {
       </div>
 
       <div className="contenedor" style={{ paddingTop: '16px' }}>
+        {/* Recordatorio de credenciales (solo si la cuenta tiene clave guardada y no se ha descartado) */}
+        {!preview && perfil?.clave && <RecordatorioClave email={perfil.email} clave={perfil.clave} />}
+
         {/* Fecha — tarjeta de bienvenida */}
         <div style={{
           background: 'var(--grad-marca)',
@@ -154,6 +198,39 @@ export default function MercaderistaHome() {
           </button>
         )}
 
+        {/* ── ATRASADAS: prioridad, no visitadas hace días ── */}
+        {atrasadas.length > 0 && (
+          <div style={{ marginBottom: '20px' }}>
+            <div className="seccion-titulo" style={{ color: 'var(--rojo)' }}>
+              ⚠️ Atrasadas — visítalas cuanto antes ({atrasadas.length})
+            </div>
+            {atrasadas.map(t => (
+              <div key={t.id} className="card" style={{ borderLeft: '4px solid var(--rojo)', background: '#FFF6F6' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '17px' }}>{t.name}</div>
+                    <div style={{ color: 'var(--gris)', fontSize: '13px', marginTop: '2px' }}>📍 {t.ciudad}</div>
+                  </div>
+                  <span style={{ background: '#FDE2E2', color: '#B71C1C', fontWeight: 700, fontSize: '12px', padding: '4px 9px', borderRadius: '999px', whiteSpace: 'nowrap' }}>
+                    {t._nunca ? '⛔ Nunca visitada' : `⏰ Hace ${t._dias} días`}
+                  </span>
+                </div>
+                {(t.mapsUrl || t.gps?.lat) && (
+                  <a className="btn btn-outline btn-sm" style={{ marginBottom: '8px' }}
+                    href={t.mapsUrl || `https://www.google.com/maps/dir/?api=1&destination=${t.gps.lat},${t.gps.lng}`}
+                    target="_blank" rel="noreferrer">
+                    🧭 Navegar
+                  </a>
+                )}
+                <button className="btn btn-primario"
+                  onClick={() => navigate(`/visita/${t.id}`, { state: { supermercado: t } })}>
+                  🚀 Iniciar visita
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="seccion-titulo">🏪 Mis supermercados de hoy</div>
 
         {supermercados.length === 0 && (
@@ -163,14 +240,14 @@ export default function MercaderistaHome() {
           </div>
         )}
 
-        {supermercados.map(super_ => {
+        {supermercadosOrdenados.map(super_ => {
           const estado = estadoSuper(super_.id)
           const badge = badgeEstado(estado)
           const visita = visitasHoy.find(v => v.supermercadoId === super_.id)
 
           return (
             <div key={super_.id} className="card" style={{
-              borderLeft: `4px solid ${estado === 'completada' ? 'var(--verde)' : estado === 'en_curso' ? 'var(--amarillo)' : '#E0E0E0'}`
+              borderLeft: `4px solid ${estado === 'completada' ? 'var(--verde)' : estado === 'en_curso' ? 'var(--amarillo)' : 'var(--rojo)'}`
             }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
                 <div>
@@ -216,6 +293,36 @@ export default function MercaderistaHome() {
           )
         })}
       </div>
+    </div>
+  )
+}
+
+function RecordatorioClave({ email, clave }) {
+  const [visible, setVisible] = useState(true)
+  const [verClave, setVerClave] = useState(false)
+  if (!visible) return null
+  return (
+    <div style={{
+      background: '#FFF8E1', border: '1.5px solid #FFD400',
+      borderRadius: 12, padding: '12px 16px', marginBottom: 14,
+      display: 'flex', alignItems: 'flex-start', gap: 10,
+    }}>
+      <span style={{ fontSize: 22 }}>🔑</span>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Tus datos de acceso</div>
+        <div style={{ fontSize: 13, color: '#444' }}>👤 <b>{email.replace('@freshcopty.com', '')}</b></div>
+        <div style={{ fontSize: 13, color: '#444', display: 'flex', alignItems: 'center', gap: 6 }}>
+          🔒 {verClave ? clave : '••••••••'}
+          <button onClick={() => setVerClave(v => !v)}
+            style={{ fontSize: 11, background: '#eee', border: 'none', borderRadius: 6, padding: '2px 7px', cursor: 'pointer' }}>
+            {verClave ? 'Ocultar' : 'Ver'}
+          </button>
+        </div>
+      </div>
+      <button onClick={() => setVisible(false)}
+        style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#999', lineHeight: 1 }}>
+        ✕
+      </button>
     </div>
   )
 }
